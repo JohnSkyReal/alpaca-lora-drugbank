@@ -3,11 +3,11 @@ CUDAs=(${TOT_CUDA//,/ })
 CUDA_NUM=${#CUDAs[@]}
 PORT="12345"
 
-DATA_PATH="/kaggle/input/drugbank-alpaca-jsonl/DrugBank_alpaca.jsonl"
+DATA_PATH="/kaggle/input/drugbank-alpaca-vline/DrugBank_alpaca_vline.jsonl"
 OUTPUT_PATH="lora-alpaca"
 MODEL_PATH="decapoda-research/llama-7b-hf"
 # lora_checkpoint="./lora-Vicuna/checkpoint-11600"
-TEST_SIZE=200
+TEST_SIZE=0
 
 CUDA_VISIBLE_DEVICES=${TOT_CUDA} torchrun --nproc_per_node=$CUDA_NUM --master_port=$PORT finetune.py \
 --data_path $DATA_PATH \
