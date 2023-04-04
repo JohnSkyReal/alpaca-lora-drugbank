@@ -3,7 +3,7 @@ CUDAs=(${TOT_CUDA//,/ })
 CUDA_NUM=${#CUDAs[@]}
 PORT="12345"
 
-DATA_PATH="/kaggle/input/drugbank-alpaca-vline/DrugBank_alpaca_vline.jsonl"
+DATA_PATH="/kaggle/input/drugbank-alpaca-nl/DrugBank_alpaca_nl.jsonl"
 OUTPUT_PATH="lora-alpaca"
 MODEL_PATH="decapoda-research/llama-7b-hf"
 # lora_checkpoint="./lora-Vicuna/checkpoint-11600"

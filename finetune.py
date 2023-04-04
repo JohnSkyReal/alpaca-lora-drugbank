@@ -24,11 +24,11 @@ from peft import (
 parser = argparse.ArgumentParser()
 parser.add_argument("--wandb", action="store_true", default=False)
 parser.add_argument("--data_path", type=str, default="merge.json")
-parser.add_argument("--output_path", type=str, default="lora-Vicuna")
+parser.add_argument("--output_path", type=str, default="lora-alpaca")
 parser.add_argument("--model_path", type=str, default="decapoda-research/llama-7b-hf")
 parser.add_argument("--eval_steps", type=int, default=200)
 parser.add_argument("--save_steps", type=int, default=200)
-parser.add_argument("--test_size", type=int, default=200)
+parser.add_argument("--test_size", type=int, default=0)
 parser.add_argument("--resume_from_checkpoint", type=str, default=None)
 parser.add_argument("--ignore_data_skip", type=str, default="False")
 args = parser.parse_args()
@@ -42,7 +42,7 @@ MAX_STEPS = None
 GRADIENT_ACCUMULATION_STEPS = BATCH_SIZE // MICRO_BATCH_SIZE
 EPOCHS = 3  # we don't always need 3 tbh
 LEARNING_RATE = 3e-4  # the Karpathy constant
-CUTOFF_LEN = 256  # 256 accounts for about 96% of the data
+CUTOFF_LEN = 512  # 256 accounts for about 96% of the data
 LORA_R = 8
 LORA_ALPHA = 16
 LORA_DROPOUT = 0.05
