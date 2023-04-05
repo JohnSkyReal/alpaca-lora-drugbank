@@ -19,7 +19,7 @@ parser.add_argument("--model_path", type=str, default="decapoda-research/llama-7
 args = parser.parse_args()
 
 if not args.wandb:
-    os.environ["WANDB_MODE"] = "disable"
+    os.environ["WANDB_MODE"] = "disabled"
 
 # Setting for A100 - For 3090
 MICRO_BATCH_SIZE = 8  # change to 4 for 3090
@@ -147,13 +147,13 @@ trainer = transformers.Trainer(
 )
 model.config.use_cache = False
 
-# old_state_dict = model.state_dict
-# model.state_dict = (
-#     lambda self, *_, **__: get_peft_model_state_dict(self, old_state_dict())
-# ).__get__(model, type(model))
+old_state_dict = model.state_dict
+model.state_dict = (
+    lambda self, *_, **__: get_peft_model_state_dict(self, old_state_dict())
+).__get__(model, type(model))
 
-# if torch.__version__ >= "2" and sys.platform != "win32":
-#     model = torch.compile(model)
+if torch.__version__ >= "2" and sys.platform != "win32":
+    model = torch.compile(model)
 
 trainer.train(resume_from_checkpoint=False)
 
