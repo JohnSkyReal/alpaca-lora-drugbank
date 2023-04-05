@@ -16,6 +16,10 @@ parser.add_argument("--wandb", action="store_true", default=False)
 parser.add_argument("--data_path", type=str, default="merge.json")
 parser.add_argument("--output_path", type=str, default="lora-alpaca")
 parser.add_argument("--model_path", type=str, default="decapoda-research/llama-7b-hf")
+parser.add_argument("--epochs", type=int, default=3)
+parser.add_argument("--micro_batch_size", type=int, default=8)
+parser.add_argument("--batch_size", type=int, default=128)
+parser.add_argument("--max_length", type=int, default=256)
 parser.add_argument("--eval_steps", type=int, default=200)
 parser.add_argument("--save_steps", type=int, default=200)
 parser.add_argument("--test_size", type=int, default=0)
@@ -26,12 +30,12 @@ if not args.wandb:
     os.environ["WANDB_MODE"] = "disabled"
 
 # Setting for A100 - For 3090
-MICRO_BATCH_SIZE = 8  # change to 4 for 3090
-BATCH_SIZE = 128
+MICRO_BATCH_SIZE = args.micro_batch_size  # change to 4 for 3090
+BATCH_SIZE = args.batch_size
 GRADIENT_ACCUMULATION_STEPS = BATCH_SIZE // MICRO_BATCH_SIZE
-EPOCHS = 3  # paper uses 3
+EPOCHS = args.epochs  # paper uses 3
 LEARNING_RATE = 3e-4  # from the original paper
-CUTOFF_LEN = 256  # 256 accounts for about 96% of the data
+CUTOFF_LEN = args.max_length  # 256 accounts for about 96% of the data
 LORA_R = 8
 LORA_ALPHA = 16
 LORA_DROPOUT = 0.05
