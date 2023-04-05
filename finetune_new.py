@@ -16,6 +16,10 @@ parser.add_argument("--wandb", action="store_true", default=False)
 parser.add_argument("--data_path", type=str, default="merge.json")
 parser.add_argument("--output_path", type=str, default="lora-alpaca")
 parser.add_argument("--model_path", type=str, default="decapoda-research/llama-7b-hf")
+parser.add_argument("--eval_steps", type=int, default=200)
+parser.add_argument("--save_steps", type=int, default=200)
+parser.add_argument("--test_size", type=int, default=0)
+parser.add_argument("--ignore_data_skip", type=str, default="False")
 args = parser.parse_args()
 
 if not args.wandb:
@@ -31,6 +35,7 @@ CUTOFF_LEN = 256  # 256 accounts for about 96% of the data
 LORA_R = 8
 LORA_ALPHA = 16
 LORA_DROPOUT = 0.05
+VAL_SET_SIZE = args.test_size #2000
 
 DATA_PATH = args.data_path
 OUTPUT_DIR = args.output_path
@@ -94,6 +99,9 @@ model = get_peft_model(model, config)
 data = load_dataset("json", data_files=DATA_PATH)
 
 
+model.print_trainable_parameters()
+
+
 def generate_prompt(data_point):
     # sorry about the formatting disaster gotta move fast
     if data_point["input"]:
@@ -140,8 +148,16 @@ trainer = transformers.Trainer(
         learning_rate=LEARNING_RATE,
         fp16=True,
         logging_steps=1,
+        evaluation_strategy="steps" if VAL_SET_SIZE > 0 else "no",
+        save_strategy="steps",
+        eval_steps=args.eval_steps if VAL_SET_SIZE > 0 else None,
+        save_steps=args.save_steps,
         output_dir=OUTPUT_DIR,
         save_total_limit=3,
+        load_best_model_at_end=True if VAL_SET_SIZE > 0 else False,
+        ddp_find_unused_parameters=False if ddp else None,
+        report_to="wandb" if args.wandb else [],
+        ignore_data_skip=args.ignore_data_skip,
     ),
     data_collator=transformers.DataCollatorForLanguageModeling(tokenizer, mlm=False),
 )
