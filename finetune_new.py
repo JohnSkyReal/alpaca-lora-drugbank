@@ -22,7 +22,7 @@ parser.add_argument("--batch_size", type=int, default=128)
 parser.add_argument("--max_length", type=int, default=256)
 parser.add_argument("--eval_steps", type=int, default=200)
 parser.add_argument("--save_steps", type=int, default=200)
-parser.add_argument("--test_size", type=int, default=0)
+parser.add_argument("--test_size", type=int, default=0)   # 该参数暂停使用
 parser.add_argument("--ignore_data_skip", type=str, default="False")
 args = parser.parse_args()
 
@@ -51,8 +51,10 @@ if ddp:
     device_map = {"": int(os.environ.get("LOCAL_RANK") or 0)}
     GRADIENT_ACCUMULATION_STEPS = GRADIENT_ACCUMULATION_STEPS // world_size
 
+print(args.model_path)
+
 model = LlamaForCausalLM.from_pretrained(
-    "decapoda-research/llama-7b-hf",
+    args.model_path,
     load_in_8bit=True,
     device_map=device_map,
 )
@@ -70,7 +72,7 @@ model = LlamaForCausalLM.from_pretrained(
 # )
 
 tokenizer = LlamaTokenizer.from_pretrained(
-    "decapoda-research/llama-7b-hf", add_eos_token=True
+    args.model_path, add_eos_token=True
 )
 
 tokenizer.pad_token_id = 0
