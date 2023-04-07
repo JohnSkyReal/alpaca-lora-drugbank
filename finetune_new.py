@@ -127,11 +127,13 @@ if args.resume_from_checkpoint:
         model = set_peft_model_state_dict(model, adapters_weights)
     else:
         print(f"Checkpoint {checkpoint_name} not found")
+    print("checkpoint_name", checkpoint_name)
 
 
 data = load_dataset("json", data_files=DATA_PATH)
 
 print('following is model arti-----------------')
+
 print(model)
 model.print_trainable_parameters()
 
