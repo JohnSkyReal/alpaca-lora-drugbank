@@ -28,7 +28,7 @@ parser.add_argument("--save_steps", type=int, default=20)
 parser.add_argument("--save_total_limit", type=int, default=3)
 parser.add_argument("--test_size", type=int, default=0)   # 该参数暂停使用
 parser.add_argument("--resume_from_checkpoint", type=str, default=None)
-parser.add_argument("--ignore_data_skip", type=str, default="False")
+parser.add_argument("--ignore_data_skip", type=str, default="False")  # False为从断点处数据继续训练，True为从头开始
 args = parser.parse_args()
 
 if not args.wandb:
@@ -131,7 +131,8 @@ if args.resume_from_checkpoint:
 
 data = load_dataset("json", data_files=DATA_PATH)
 
-
+print('following is model arti-----------------')
+print(model)
 model.print_trainable_parameters()
 
 
