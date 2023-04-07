@@ -9,6 +9,7 @@ import transformers
 from transformers import AutoTokenizer, AutoConfig, LlamaForCausalLM, LlamaTokenizer
 from peft import prepare_model_for_int8_training, LoraConfig, get_peft_model, get_peft_model_state_dict, set_peft_model_state_dict
 import argparse
+import warnings
 
 
 parser = argparse.ArgumentParser()
@@ -106,6 +107,28 @@ config = LoraConfig(
 )
 model = get_peft_model(model, config)
 # tokenizer.pad_token_id = 0  # unk. we want this to be different from the eos token
+
+if args.resume_from_checkpoint:
+# Check the available weights and load them
+    checkpoint_name = os.path.join(args.resume_from_checkpoint, "pytorch_model.bin")  # Full checkpoint
+    if not os.path.exists(checkpoint_name):
+        pytorch_bin_path = checkpoint_name
+        checkpoint_name = os.path.join(args.resume_from_checkpoint, "adapter_model.bin")  # only LoRA model - LoRA config above has to fit
+        if os.path.exists(checkpoint_name):
+            os.rename(checkpoint_name, pytorch_bin_path)
+            warnings.warn("The file name of the lora checkpoint 'adapter_model.bin' is replaced with 'pytorch_model.bin'")
+        else:
+            args.resume_from_checkpoint = None  # So the trainer won't try loading its state
+            warnings.warn(f"Checkpoint {checkpoint_name} not found, now training from scratch!")
+    # The two files above have a different name depending on how they were saved, but are actually the same.
+    if os.path.exists(checkpoint_name):  # 找到有该checkpoint目录
+        print(f"Restarting from {checkpoint_name}")
+        adapters_weights = torch.load(checkpoint_name)
+        model = set_peft_model_state_dict(model, adapters_weights)
+    else:
+        print(f"Checkpoint {checkpoint_name} not found")
+
+
 data = load_dataset("json", data_files=DATA_PATH)
 
 
@@ -181,6 +204,6 @@ model.state_dict = (
 if torch.__version__ >= "2" and sys.platform != "win32":
     model = torch.compile(model)
 
-trainer.train(resume_from_checkpoint=False)
+trainer.train(resume_from_checkpoint=args.resume_from_checkpoint)
 
 model.save_pretrained(OUTPUT_DIR)
