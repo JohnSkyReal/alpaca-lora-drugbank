@@ -20,9 +20,13 @@ parser.add_argument("--epochs", type=int, default=3)
 parser.add_argument("--micro_batch_size", type=int, default=8)
 parser.add_argument("--batch_size", type=int, default=128)
 parser.add_argument("--max_length", type=int, default=256)
+parser.add_argument("--warmup_steps", type=int, default=20)
+parser.add_argument("--logging_steps", type=int, default=1)
 parser.add_argument("--eval_steps", type=int, default=200)
-parser.add_argument("--save_steps", type=int, default=200)
+parser.add_argument("--save_steps", type=int, default=20)
+parser.add_argument("--save_total_limit", type=int, default=3)
 parser.add_argument("--test_size", type=int, default=0)   # 该参数暂停使用
+parser.add_argument("--resume_from_checkpoint", type=str, default=None)
 parser.add_argument("--ignore_data_skip", type=str, default="False")
 args = parser.parse_args()
 
@@ -149,17 +153,17 @@ trainer = transformers.Trainer(
     args=transformers.TrainingArguments(
         per_device_train_batch_size=MICRO_BATCH_SIZE,
         gradient_accumulation_steps=GRADIENT_ACCUMULATION_STEPS,
-        warmup_steps=20,
+        warmup_steps=args.warmup_steps,
         num_train_epochs=EPOCHS,
         learning_rate=LEARNING_RATE,
         fp16=True,
-        logging_steps=1,
+        logging_steps=args.logging_steps,
         evaluation_strategy="steps" if VAL_SET_SIZE > 0 else "no",
         save_strategy="steps",
         eval_steps=args.eval_steps if VAL_SET_SIZE > 0 else None,
         save_steps=args.save_steps,
         output_dir=OUTPUT_DIR,
-        save_total_limit=3,
+        save_total_limit=args.save_total_limit,
         load_best_model_at_end=True if VAL_SET_SIZE > 0 else False,
         ddp_find_unused_parameters=False if ddp else None,
         report_to="wandb" if args.wandb else [],
