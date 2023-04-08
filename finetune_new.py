@@ -33,8 +33,8 @@ parser.add_argument("--resume_from_checkpoint", type=str, default=None)
 parser.add_argument("--ignore_data_skip", type=str, default="False")  # False为从断点处数据继续训练，True为从头开始
 args = parser.parse_args()
 
-if not args.wandb:
-    os.environ["WANDB_MODE"] = "disabled"
+# if not args.wandb:
+#     os.environ["WANDB_MODE"] = "disabled"
 
 # Setting for A100 - For 3090
 MICRO_BATCH_SIZE = args.micro_batch_size  # change to 4 for 3090
@@ -240,7 +240,7 @@ trainer = transformers.Trainer(
         save_total_limit=args.save_total_limit,
         load_best_model_at_end=True if VAL_SET_SIZE > 0 else False,
         ddp_find_unused_parameters=False if ddp else None,
-        report_to="wandb" if args.wandb else [],
+        # report_to="wandb" if args.wandb else [],
         ignore_data_skip=args.ignore_data_skip,
     ),
     data_collator=transformers.DataCollatorForLanguageModeling(tokenizer, mlm=False),
