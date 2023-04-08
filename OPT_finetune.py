@@ -1,4 +1,5 @@
 import os
+import sys
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import torch
 import torch.nn as nn
@@ -12,18 +13,18 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--wandb", action="store_true", default=False)
-parser.add_argument("--data_path", type=str, default="merge.json")
-parser.add_argument("--output_path", type=str, default="lora-alpaca")
+parser.add_argument("--data_path", type=str, default="DrugBank_train_prepared.jsonl")
+parser.add_argument("--output_path", type=str, default="opt-outputs")
 parser.add_argument("--model_path", type=str, default="facebook/opt-6.7b")
-parser.add_argument("--epochs", type=int, default=3)
+parser.add_argument("--epochs", type=int, default=30)
 parser.add_argument("--micro_batch_size", type=int, default=8)
 parser.add_argument("--batch_size", type=int, default=128)
 parser.add_argument("--max_length", type=int, default=256)
-parser.add_argument("--warmup_steps", type=int, default=20)
+parser.add_argument("--warmup_ratio", type=float, default=0.1)
 parser.add_argument("--logging_steps", type=int, default=1)
 parser.add_argument("--eval_steps", type=int, default=200)
 parser.add_argument("--save_steps", type=int, default=20)
-parser.add_argument("--save_total_limit", type=int, default=3)
+parser.add_argument("--save_total_limit", type=int, default=30)
 parser.add_argument("--test_size", type=int, default=0)   # 该参数暂停使用
 parser.add_argument("--resume_from_checkpoint", type=str, default=None)
 parser.add_argument("--ignore_data_skip", type=str, default="False")
@@ -32,27 +33,37 @@ args = parser.parse_args()
 if not args.wandb:
     os.environ["WANDB_MODE"] = "disabled"
 
-MICRO_BATCH_SIZE = args.micro_batch_size  # change to 4 for 3090
+MICRO_BATCH_SIZE = args.micro_batch_size
 BATCH_SIZE = args.batch_size
 GRADIENT_ACCUMULATION_STEPS = BATCH_SIZE // MICRO_BATCH_SIZE
-EPOCHS = args.epochs  # paper uses 3
-LEARNING_RATE = 3e-4  # from the original paper
-CUTOFF_LEN = args.max_length  # 256 accounts for about 96% of the data
-LORA_R = 8
-LORA_ALPHA = 16
+EPOCHS = args.epochs
+LEARNING_RATE = 2e-4
+CUTOFF_LEN = args.max_length
+LORA_R = 16
+LORA_ALPHA = 32
 LORA_DROPOUT = 0.05
-VAL_SET_SIZE = args.test_size #2000
+VAL_SET_SIZE = args.test_size
 
+DATA_PATH = args.data_path
+OUTPUT_DIR = args.output_path
 
+device_map = "auto"
+world_size = int(os.environ.get("WORLD_SIZE", 1))
+ddp = world_size != 1
+if ddp:
+    device_map = {"": int(os.environ.get("LOCAL_RANK") or 0)}
+    GRADIENT_ACCUMULATION_STEPS = GRADIENT_ACCUMULATION_STEPS // world_size
+
+print(args.model_path)
 
 
 model = AutoModelForCausalLM.from_pretrained(
-    "facebook/opt-6.7b",
+    args.model_path,
     load_in_8bit=True,
     device_map="auto",
 )
 
-tokenizer = AutoTokenizer.from_pretrained("facebook/opt-6.7b")
+tokenizer = AutoTokenizer.from_pretrained(args.model_path)
 
 # # 虽说显式声明了四种特殊字符，但tokenizer
 # tokenizer.pad_token_id = 1
@@ -82,10 +93,10 @@ def print_trainable_parameters(model):
     )
 
 config = LoraConfig(
-    r=16,
-    lora_alpha=32,
+    r=LORA_R,
+    lora_alpha=LORA_ALPHA,
     target_modules=["q_proj", "v_proj"],
-    lora_dropout=0.05,
+    lora_dropout=LORA_DROPOUT,
     bias="none",
     task_type="CAUSAL_LM"
 )
@@ -96,7 +107,7 @@ print_trainable_parameters(model)
 
 # 由于OPTtokenizer无法自动添加eos token，因此手动在text末尾添加eos token：</s>
 
-data = load_dataset("json", data_files="DrugBank_train_prepared.jsonl")  # 与GPT3 finetune格式相同
+data = load_dataset("json", data_files=DATA_PATH)  # 与GPT3 finetune格式相同
 
 '''
 Example:
@@ -133,7 +144,7 @@ data = data.shuffle().map(
     lambda data_point: tokenizer(
         generate_prompt(data_point),
         truncation=True,
-        max_length=256,
+        max_length=CUTOFF_LEN,
         padding="max_length",
     )
 )
@@ -146,15 +157,28 @@ trainer = transformers.Trainer(
     args=transformers.TrainingArguments(
         per_device_train_batch_size=MICRO_BATCH_SIZE,
         gradient_accumulation_steps=GRADIENT_ACCUMULATION_STEPS,
-        warmup_ratio=0.1,
-        num_train_epochs=3,
-        learning_rate=2e-4,
+        warmup_ratio=args.warmup_ratio,
+        num_train_epochs=EPOCHS,
+        learning_rate=LEARNING_RATE,
         fp16=True,
-        logging_steps=1,
-        output_dir="opt-outputs",
+        logging_steps=args.logging_steps,
+        evaluation_strategy="steps" if VAL_SET_SIZE > 0 else "no",
+        save_strategy="steps",
+        eval_steps=args.eval_steps if VAL_SET_SIZE > 0 else None,
+        save_steps=args.save_steps,
+        output_dir=OUTPUT_DIR,
+        save_total_limit=args.save_total_limit,
+        load_best_model_at_end=True if VAL_SET_SIZE > 0 else False,
+        ddp_find_unused_parameters=False if ddp else None,
+        report_to="wandb" if args.wandb else [],
+        ignore_data_skip=args.ignore_data_skip,
     ),
     data_collator=transformers.DataCollatorForLanguageModeling(tokenizer, mlm=False),
 )
 model.config.use_cache = False  # silence the warnings. Please re-enable for inference!
+
+if torch.__version__ >= "2" and sys.platform != "win32":
+    model = torch.compile(model)
+
 trainer.train()
-model.save_pretrained("opt-outputs")
+model.save_pretrained(OUTPUT_DIR)

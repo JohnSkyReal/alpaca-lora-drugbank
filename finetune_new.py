@@ -21,7 +21,8 @@ parser.add_argument("--epochs", type=int, default=3)
 parser.add_argument("--micro_batch_size", type=int, default=8)
 parser.add_argument("--batch_size", type=int, default=128)
 parser.add_argument("--max_length", type=int, default=256)
-parser.add_argument("--warmup_steps", type=int, default=20)
+# parser.add_argument("--warmup_steps", type=int, default=20)  # 换用下面 warmup_ratio
+parser.add_argument("--warmup_ratio", type=float, default=0.1)
 parser.add_argument("--logging_steps", type=int, default=1)
 parser.add_argument("--eval_steps", type=int, default=200)
 parser.add_argument("--save_steps", type=int, default=20)
@@ -166,7 +167,7 @@ data = data.shuffle().map(
     lambda data_point: tokenizer(
         generate_prompt(data_point),
         truncation=True,
-        max_length=CUTOFF_LEN+1,
+        max_length=CUTOFF_LEN,
         padding="max_length",
     )
 )
@@ -179,7 +180,8 @@ trainer = transformers.Trainer(
     args=transformers.TrainingArguments(
         per_device_train_batch_size=MICRO_BATCH_SIZE,
         gradient_accumulation_steps=GRADIENT_ACCUMULATION_STEPS,
-        warmup_steps=args.warmup_steps,
+        # warmup_steps=args.warmup_steps,
+        warmup_ratio=args.warmup_ratio,
         num_train_epochs=EPOCHS,
         learning_rate=LEARNING_RATE,
         fp16=True,
