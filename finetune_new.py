@@ -42,8 +42,8 @@ GRADIENT_ACCUMULATION_STEPS = BATCH_SIZE // MICRO_BATCH_SIZE
 EPOCHS = args.epochs  # paper uses 3
 LEARNING_RATE = 3e-4  # from the original paper
 CUTOFF_LEN = args.max_length  # 256 accounts for about 96% of the data
-LORA_R = 8
-LORA_ALPHA = 16
+LORA_R = 16  # 8
+LORA_ALPHA = 32  # 16
 LORA_DROPOUT = 0.05
 VAL_SET_SIZE = args.test_size #2000
 
@@ -133,9 +133,9 @@ if args.resume_from_checkpoint:
 
 data = load_dataset("json", data_files=DATA_PATH)
 
-print('following is model arti-----------------')
+# print('following is model structure -----------------')
 
-print(model)
+# print(model)
 model.print_trainable_parameters()
 
 
