@@ -15,19 +15,20 @@ import warnings
 parser = argparse.ArgumentParser()
 parser.add_argument("--wandb", action="store_true", default=False)
 parser.add_argument("--data_path", type=str, default="merge.json")
+parser.add_argument("--test_path", type=str, default="merge.json")
 parser.add_argument("--output_path", type=str, default="lora-alpaca")
 parser.add_argument("--model_path", type=str, default="decapoda-research/llama-7b-hf")
-parser.add_argument("--epochs", type=int, default=3)
+parser.add_argument("--epochs", type=int, default=30)
 parser.add_argument("--micro_batch_size", type=int, default=8)
 parser.add_argument("--batch_size", type=int, default=128)
 parser.add_argument("--max_length", type=int, default=256)
 # parser.add_argument("--warmup_steps", type=int, default=20)  # 换用下面 warmup_ratio
 parser.add_argument("--warmup_ratio", type=float, default=0.1)
 parser.add_argument("--logging_steps", type=int, default=1)
-parser.add_argument("--eval_steps", type=int, default=200)
+parser.add_argument("--eval_steps", type=int, default=20)
 parser.add_argument("--save_steps", type=int, default=20)
-parser.add_argument("--save_total_limit", type=int, default=3)
-parser.add_argument("--test_size", type=int, default=0)   # 该参数暂停使用
+parser.add_argument("--save_total_limit", type=int, default=30)
+parser.add_argument("--do_test", type=int, default=0)   # 0: 不用测试集，1：用测试集
 parser.add_argument("--resume_from_checkpoint", type=str, default=None)
 parser.add_argument("--ignore_data_skip", type=str, default="False")  # False为从断点处数据继续训练，True为从头开始
 args = parser.parse_args()
@@ -45,9 +46,10 @@ CUTOFF_LEN = args.max_length  # 256 accounts for about 96% of the data
 LORA_R = 16  # 8
 LORA_ALPHA = 32  # 16
 LORA_DROPOUT = 0.05
-VAL_SET_SIZE = args.test_size #2000
+VAL_SET_SIZE = args.do_test #2000
 
 DATA_PATH = args.data_path
+TEST_DATA_PATH = args.test_path
 OUTPUT_DIR = args.output_path
 
 device_map = "auto"
@@ -139,10 +141,33 @@ data = load_dataset("json", data_files=DATA_PATH)
 model.print_trainable_parameters()
 
 
+# def generate_prompt(data_point):
+#     # sorry about the formatting disaster gotta move fast
+#     if data_point["input"]:
+#         return f"""Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
+#
+# ### Instruction:
+# {data_point["instruction"]}
+#
+# ### Input:
+# {data_point["input"]}
+#
+# ### Response:
+# {data_point["output"]}"""
+#     else:
+#         return f"""Below is an instruction that describes a task. Write a response that appropriately completes the request.
+#
+# ### Instruction:
+# {data_point["instruction"]}
+#
+# ### Response:
+# {data_point["output"]}"""
+
 def generate_prompt(data_point):
-    # sorry about the formatting disaster gotta move fast
-    if data_point["input"]:
-        return f"""Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
+    if "instruction" in data_point.keys():
+        # sorry about the formatting disaster gotta move fast
+        if data_point["input"]:
+            return f"""Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 
 ### Instruction:
 {data_point["instruction"]}
@@ -152,14 +177,16 @@ def generate_prompt(data_point):
 
 ### Response:
 {data_point["output"]}"""
-    else:
-        return f"""Below is an instruction that describes a task. Write a response that appropriately completes the request.
+        else:
+            return f"""Below is an instruction that describes a task. Write a response that appropriately completes the request.
 
 ### Instruction:
 {data_point["instruction"]}
 
 ### Response:
 {data_point["output"]}"""
+    else:
+        return data_point["prompt"] + data_point["completion"]
 
 # print(data)
 
@@ -172,11 +199,30 @@ data = data.shuffle().map(
     )
 )
 
-print(tokenizer.decode(data['train'][100]["input_ids"]))
+if VAL_SET_SIZE > 0:
+    test_data = load_dataset("json", data_files=TEST_DATA_PATH)
+    test_data = test_data.shuffle().map(
+        lambda data_point: tokenizer(
+            generate_prompt(data_point),
+            truncation=True,
+            max_length=CUTOFF_LEN,
+            padding="max_length",
+        )
+    )
+else:
+    test_data = None
+
+print("train data length: {}".format(len(data['train'])))
+print("dev/test data length: {}".format(len(test_data['train']) if test_data else 0))
+print(data)
+print(test_data)
+print(tokenizer.decode(data['train'][0]["input_ids"]))
+print(tokenizer.decode(test_data['train'][0]["input_ids"]) if test_data else None)
 
 trainer = transformers.Trainer(
     model=model,
     train_dataset=data["train"],
+    eval_dataset=test_data["train"],
     args=transformers.TrainingArguments(
         per_device_train_batch_size=MICRO_BATCH_SIZE,
         gradient_accumulation_steps=GRADIENT_ACCUMULATION_STEPS,
