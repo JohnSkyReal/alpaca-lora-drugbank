@@ -13,7 +13,7 @@ import warnings
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--wandb", action="store_true", default=False)
+parser.add_argument("--wandb", action="store_true", default=True) # 改成了True
 parser.add_argument("--data_path", type=str, default="merge.json")
 parser.add_argument("--test_path", type=str, default="merge.json")
 parser.add_argument("--output_path", type=str, default="lora-alpaca")
@@ -43,8 +43,8 @@ GRADIENT_ACCUMULATION_STEPS = BATCH_SIZE // MICRO_BATCH_SIZE
 EPOCHS = args.epochs  # paper uses 3
 LEARNING_RATE = 3e-4  # from the original paper
 CUTOFF_LEN = args.max_length  # 256 accounts for about 96% of the data
-LORA_R = 16  # 8
-LORA_ALPHA = 32  # 16
+LORA_R = 8  # 8
+LORA_ALPHA = 16  # 16
 LORA_DROPOUT = 0.05
 VAL_SET_SIZE = args.do_test #2000
 
