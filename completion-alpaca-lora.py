@@ -45,7 +45,7 @@ def readxls(path):
 
 
 def auto_completion(text, has_input):
-    if has_input:
+    if has_input == 1:
         input_text = f"""Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 ### Instruction:
 Extract drug entities and their relationships from the following biomedical text.
@@ -54,13 +54,15 @@ Extract drug entities and their relationships from the following biomedical text
 {text}
 
 ### Response:"""
-    else:
+    elif has_input == 0:
         input_text = f'''Below is an instruction that describes a task. Write a response that appropriately completes the request.
 
 ### Instruction:
 {text}
 
 ### Response:'''
+    else:
+        input_text = text + '\n\n###\n\n'
 
     inputs = tokenizer(
         input_text,
