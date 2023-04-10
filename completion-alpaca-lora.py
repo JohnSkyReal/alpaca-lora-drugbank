@@ -94,7 +94,7 @@ Extract drug entities and their relationships from the following biomedical text
         max_new_tokens=256,
     )
     for s in generation_output.sequences:
-        response = tokenizer.decode(s)
+        response = tokenizer.decode(s, skip_special_tokens=True)  # 新增参数，来自opt
         print(response)
         print('-' * 20)
     return response
