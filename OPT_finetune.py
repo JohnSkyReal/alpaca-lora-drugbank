@@ -19,7 +19,7 @@ parser.add_argument("--test_path", type=str, default="merge.json")
 parser.add_argument("--output_path", type=str, default="opt-outputs")
 parser.add_argument("--model_path", type=str, default="facebook/opt-6.7b")
 parser.add_argument("--epochs", type=int, default=30)
-parser.add_argument("--micro_batch_size", type=int, default=8)
+parser.add_argument("--micro_batch_size", type=int, default=16)
 parser.add_argument("--batch_size", type=int, default=128)
 parser.add_argument("--max_length", type=int, default=256)
 parser.add_argument("--warmup_ratio", type=float, default=0.1)
@@ -79,7 +79,21 @@ tokenizer = AutoTokenizer.from_pretrained(args.model_path)
 # print(tokenizer.eos_token, tokenizer.eos_token_id)
 # print(tokenizer.pad_token, tokenizer.pad_token_id)
 
-model = prepare_model_for_int8_training(model)
+# model = prepare_model_for_int8_training(model)
+
+for param in model.parameters():
+  param.requires_grad = False  # freeze the model - train adapters later
+  if param.ndim == 1:
+    # cast the small parameters (e.g. layernorm) to fp32 for stability
+    param.data = param.data.to(torch.float32)
+
+model.gradient_checkpointing_enable()  # reduce number of stored activations
+model.enable_input_require_grads()
+
+class CastOutputToFloat(nn.Sequential):
+  def forward(self, x): return super().forward(x).to(torch.float32)
+model.lm_head = CastOutputToFloat(model.lm_head)
+
 
 def print_trainable_parameters(model):
     """
@@ -112,36 +126,41 @@ print_trainable_parameters(model)
 
 data = load_dataset("json", data_files=DATA_PATH)  # 与GPT3 finetune格式相同
 
-'''
-Example:
-{"prompt":"Cocaine sometimes proves to be fatal when used in combination with heroin.\n\n###\n\n","completion":" <Cocaine, effect, heroin> END"}
-'''
+# '''
+# Example:
+# {"prompt":"Cocaine sometimes proves to be fatal when used in combination with heroin.\n\n###\n\n","completion":" <Cocaine, effect, heroin> END"}
+# '''
+#
+# def generate_prompt(data_point):
+#     text = data_point["prompt"] + data_point["completion"] + '</s>'
+#     return text
+
 
 def generate_prompt(data_point):
-    text = data_point["prompt"] + data_point["completion"] + '</s>'
-    return text
-#     # sorry about the formatting disaster gotta move fast
-#     if data_point["input"]:
-#         return f"""Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
-#
-# ### Instruction:
-# {data_point["instruction"]}
-#
-# ### Input:
-# {data_point["input"]}
-#
-# ### Response:
-# {data_point["output"]}</s>"""
-#     else:
-#         return f"""Below is an instruction that describes a task. Write a response that appropriately completes the request.
-#
-# ### Instruction:
-# {data_point["instruction"]}
-#
-# ### Response:
-# {data_point["output"]}</s>"""
+    if "instruction" in data_point.keys():
+        # sorry about the formatting disaster gotta move fast
+        if data_point["input"]:
+            return f"""Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 
-# print(data)
+### Instruction:
+{data_point["instruction"]}
+
+### Input:
+{data_point["input"]}
+
+### Response:
+{data_point["output"]}</s>"""
+        else:
+            return f"""Below is an instruction that describes a task. Write a response that appropriately completes the request.
+
+### Instruction:
+{data_point["instruction"]}
+
+### Response:
+{data_point["output"]}</s>"""
+    else:
+        return data_point["prompt"] + data_point["completion"] + '</s>'
+
 
 data = data.shuffle().map(
     lambda data_point: tokenizer(
@@ -200,13 +219,13 @@ trainer = transformers.Trainer(
 )
 model.config.use_cache = False  # silence the warnings. Please re-enable for inference!
 
-old_state_dict = model.state_dict
-model.state_dict = (
-    lambda self, *_, **__: get_peft_model_state_dict(self, old_state_dict())
-).__get__(model, type(model))
-
-if torch.__version__ >= "2" and sys.platform != "win32":
-    model = torch.compile(model)
+# old_state_dict = model.state_dict
+# model.state_dict = (
+#     lambda self, *_, **__: get_peft_model_state_dict(self, old_state_dict())
+# ).__get__(model, type(model))
+#
+# if torch.__version__ >= "2" and sys.platform != "win32":
+#     model = torch.compile(model)
 
 trainer.train()
 model.save_pretrained(OUTPUT_DIR)
