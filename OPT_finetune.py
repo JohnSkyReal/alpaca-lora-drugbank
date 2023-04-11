@@ -13,7 +13,8 @@ import warnings
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--wandb", action="store_true", default=True)
+parser.add_argument("--wandb", action="store_true", default=False)  # 改了这里
+# parser.add_argument("--wandb", action="store_true", default=True)
 parser.add_argument("--data_path", type=str, default="DrugBank_train_prepared.jsonl")
 parser.add_argument("--test_path", type=str, default="merge.json")
 parser.add_argument("--output_path", type=str, default="opt-outputs")
@@ -21,7 +22,8 @@ parser.add_argument("--model_path", type=str, default="facebook/opt-6.7b")
 parser.add_argument("--epochs", type=int, default=30)
 parser.add_argument("--micro_batch_size", type=int, default=16)
 parser.add_argument("--batch_size", type=int, default=128)
-parser.add_argument("--max_length", type=int, default=256)
+parser.add_argument("--max_length", type=int, default=64)  # 改了这里
+# parser.add_argument("--max_length", type=int, default=256)
 parser.add_argument("--warmup_ratio", type=float, default=0.1)
 parser.add_argument("--logging_steps", type=int, default=1)
 parser.add_argument("--eval_steps", type=int, default=20)
