@@ -43,7 +43,21 @@ def readxls(path):
 
 
 def auto_completion(text, has_input):
-    batch = tokenizer(text, return_tensors="pt")
+    if has_input == 1:
+        text = text.split('\n\n###\n\n')[0].strip()
+        input_text = f"""Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
+
+### Instruction:
+Extract drug entities and their relationships from the following biomedical text.
+
+### Input:
+{text}
+
+### Response:"""
+    else:
+        input_text = text
+
+    batch = tokenizer(input_text, return_tensors="pt")
     with torch.cuda.amp.autocast():
         output_tokens = model.generate(**batch, max_new_tokens=256)
         response = tokenizer.decode(output_tokens[0], skip_special_tokens=True)
