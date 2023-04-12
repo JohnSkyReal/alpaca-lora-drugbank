@@ -222,7 +222,7 @@ print(tokenizer.decode(test_data['train'][0]["input_ids"]) if test_data else Non
 trainer = transformers.Trainer(
     model=model,
     train_dataset=data["train"],
-    eval_dataset=test_data["train"],
+    eval_dataset=test_data["train"] if test_data else None,
     args=transformers.TrainingArguments(
         per_device_train_batch_size=MICRO_BATCH_SIZE,
         gradient_accumulation_steps=GRADIENT_ACCUMULATION_STEPS,
