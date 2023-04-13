@@ -1,9 +1,9 @@
 datasets
-loralib
-sentencepiece
+loralib==0.1.1
+sentencepiece==0.1.97
 git+https://github.com/huggingface/transformers.git
-accelerate
-bitsandbytes
+accelerate==0.18.0
+bitsandbytes==0.37.2
 git+https://github.com/huggingface/peft.git
 gradio
 appdirs
