@@ -13,8 +13,7 @@ import warnings
 
 
 parser = argparse.ArgumentParser()
-# parser.add_argument("--wandb", action="store_true", default=False)  # 改了这里
-parser.add_argument("--wandb", action="store_true", default=True)
+parser.add_argument("--wandb", action="store_true", default=False) # 如果想激活wandb，就传入--wandb即可，不用添加数值
 parser.add_argument("--data_path", type=str, default="DrugBank_train_prepared.jsonl")
 parser.add_argument("--test_path", type=str, default="merge.json")
 parser.add_argument("--output_path", type=str, default="opt-outputs")
@@ -22,16 +21,15 @@ parser.add_argument("--model_path", type=str, default="facebook/opt-6.7b")
 parser.add_argument("--epochs", type=int, default=30)
 parser.add_argument("--micro_batch_size", type=int, default=16)
 parser.add_argument("--batch_size", type=int, default=128)
-# parser.add_argument("--max_length", type=int, default=64)  # 改了这里
 parser.add_argument("--max_length", type=int, default=256)
 parser.add_argument("--warmup_ratio", type=float, default=0.1)
 parser.add_argument("--logging_steps", type=int, default=1)
 parser.add_argument("--eval_steps", type=int, default=20)
-parser.add_argument("--save_steps", type=int, default=20)
+parser.add_argument("--save_steps", type=int, default=20)  # 这个参数保证大于总steps，否则存的checkpoint都巨大6.x GB
 parser.add_argument("--save_total_limit", type=int, default=30)
 parser.add_argument("--do_test", type=int, default=0)   # 0: 不用测试集，1：用测试集
-parser.add_argument("--resume_from_checkpoint", type=str, default=None)
-parser.add_argument("--ignore_data_skip", type=str, default="False")
+parser.add_argument("--resume_from_checkpoint", type=str, default=None)  # 暂停使用
+parser.add_argument("--ignore_data_skip", type=str, default="False")  # 暂停使用
 args = parser.parse_args()
 
 if not args.wandb:
@@ -221,13 +219,14 @@ trainer = transformers.Trainer(
 )
 model.config.use_cache = False  # silence the warnings. Please re-enable for inference!
 
+# 这里代码不能启用，否则保存的模型bin只有1kb
 # old_state_dict = model.state_dict
 # model.state_dict = (
 #     lambda self, *_, **__: get_peft_model_state_dict(self, old_state_dict())
 # ).__get__(model, type(model))
 #
-# if torch.__version__ >= "2" and sys.platform != "win32":
-#     model = torch.compile(model)
+if torch.__version__ >= "2" and sys.platform != "win32":
+    model = torch.compile(model)
 
 trainer.train()
 model.save_pretrained(OUTPUT_DIR)

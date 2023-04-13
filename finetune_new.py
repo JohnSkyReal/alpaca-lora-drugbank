@@ -13,7 +13,7 @@ import warnings
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--wandb", action="store_true", default=True) # 改成了True
+parser.add_argument("--wandb", action="store_true", default=False) # 如果想激活wandb，就传入--wandb即可，不用添加数值
 parser.add_argument("--data_path", type=str, default="merge.json")
 parser.add_argument("--test_path", type=str, default="merge.json")
 parser.add_argument("--output_path", type=str, default="lora-alpaca")
@@ -29,8 +29,8 @@ parser.add_argument("--eval_steps", type=int, default=20)
 parser.add_argument("--save_steps", type=int, default=20)
 parser.add_argument("--save_total_limit", type=int, default=30)
 parser.add_argument("--do_test", type=int, default=0)   # 0: 不用测试集，1：用测试集
-parser.add_argument("--resume_from_checkpoint", type=str, default=None)
-parser.add_argument("--ignore_data_skip", type=str, default="False")  # False为从断点处数据继续训练，True为从头开始
+parser.add_argument("--resume_from_checkpoint", type=str, default=None)  # 暂停使用
+parser.add_argument("--ignore_data_skip", type=str, default="False")  # False为从断点处数据继续训练，True为从头开始  # 暂停使用
 args = parser.parse_args()
 
 if not args.wandb:
