@@ -125,6 +125,7 @@ def main():
     print(len(all_pairs))
     i = 1
     for pair in all_pairs:
+        print(i)
         prompt = pair['prompt'].split('\n\n###\n\n')[0].strip()
         response = auto_completion(prompt, has_input)
         pair['response'] = response
