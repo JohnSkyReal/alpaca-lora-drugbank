@@ -6,8 +6,10 @@ GPT-3
 ...
 
 ## Methods
+TBD
 
 ## Data
+TBD
 
 ## Codes
 TBD
